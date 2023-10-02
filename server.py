@@ -72,32 +72,33 @@ def handleFileListRequest(clientSocket):
         )
     )
 
-
 def handleFileLocationRequest(clientSocket):
-    global files
-    filesList = []
-    for file in files:
-        filesList.append({"filename": file, "size": files[file]["size"]})
+    data = clientSocket.recv(1024)
 
-    clientSocket.sendall(
-        json.dumps({"files_list": filesList, "file_count": len(filesList)}).encode(
-            "utf-8"
-        )
-    )
-
+    if not data:
+        print("No data received from the client.")
+    else:
+        filename = data.decode("utf-8")
+        global files
+        
+        if filename in files:
+            print(files[filename]["endpoints"])
+            clientSocket.sendall(json.dumps({ "endpoints" : files[filename]["endpoints"]}).encode("utf-8"))
 
 def handleClient(clientSocket):
     try:
         # Receive and send data to the client
         data = clientSocket.recv(1024)
         messageType = data.decode("utf-8")
+        print(messageType)
 
         if messageType == Message.REGISTER_REQUEST.value:
             handleRegisterRequest(clientSocket)
         elif messageType == Message.FILE_LIST_REQUEST.value:
             handleFileListRequest(clientSocket)
-        elif messageType == Message.FILE_LOCATIONS_REQUEST.value:
-            print("Handling a File Locations Request.")
+        elif messageType == Message.FILE_LOCATION_REQUEST.value:
+            clientSocket.sendall(b"Send file name")
+            handleFileLocationRequest(clientSocket)
         elif messageType == Message.CHUNK_REGISTER_REQUEST.value:
             print("Handling a Chunk Register Request.")
         elif messageType == Message.FILE_CHUNK_REQUEST.value:

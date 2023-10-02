@@ -7,7 +7,7 @@ import json
 
 HOST = "127.0.0.1"
 
-def sendRegisterRequest(s, ip, port, dir):
+def sendRegisterRequest(clientSocket, ip, port, dir):
     fileInfoList, totalFiles = crawlDirectory(dir)
 
     fileInfoData = json.dumps({
@@ -16,7 +16,7 @@ def sendRegisterRequest(s, ip, port, dir):
         "port": port,
         "ip": ip
     }).encode('utf-8')
-    s.sendall(fileInfoData)
+    clientSocket.sendall(fileInfoData)
 
 def waitRegisterReply(clientSocket):
     data = clientSocket.recv(1024)
@@ -25,6 +25,14 @@ def waitRegisterReply(clientSocket):
     filesList = receivedData.get("files_list")
     for file in filesList:
         print(f'File: {file["filename"]} Status: {file["status"]}')
+
+def sendFileLocationRequest(clientSocket, filename):
+    clientSocket.sendall(filename.encode('utf-8'))
+
+def waitFileLocationReply(clientSocket):
+    data = clientSocket.recv(1024)
+    receivedData = data.decode('utf-8')
+    print(receivedData)
 
 def waitFileListRequest(clientSocket):
     data = clientSocket.recv(1024)
@@ -76,7 +84,7 @@ def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, args.port))
-        messageType = Message.FILE_LIST_REQUEST.value
+        messageType = Message.FILE_LOCATION_REQUEST.value
         s.sendall(messageType.encode('utf-8'))
         print(messageType)
 
@@ -85,8 +93,10 @@ def main():
             waitRegisterReply(s)
         elif messageType == Message.FILE_LIST_REQUEST.value:
             waitFileListRequest(s)
-        elif messageType == Message.FILE_LOCATIONS_REQUEST.value:
-            print("Handling a File Locations Request.")
+        elif messageType == Message.FILE_LOCATION_REQUEST.value:
+            waitFileLocationReply(s)
+            sendFileLocationRequest(s, "networks_history.txt")
+            waitFileLocationReply(s)
         elif messageType == Message.CHUNK_REGISTER_REQUEST.value:
             print("Handling a Chunk Register Request.")
         elif messageType == Message.FILE_CHUNK_REQUEST.value:
