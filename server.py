@@ -1,7 +1,10 @@
 import socket
 import threading
-from message import Message
 import json
+
+from message import Message
+from utils import *
+from network import *
 
 HOST = "127.0.0.1"
 PORT = 65456
@@ -9,55 +12,26 @@ PORT = 65456
 files = {}
 lock = threading.Lock()
 
-
 def handleRegisterRequest(clientSocket):
-    data = clientSocket.recv(1024)
+    sendStringMessage(clientSocket, Message.REGISTER_REQUEST_ACK.value)
+    data = receiveData(clientSocket)
+    if data is None:
+        return
+    
+    jsonData = json.loads(data)
 
-    if not data:
-        print("No data received from the client.")
-    else:
-        dataStr = data.decode("utf-8")
-        receivedData = json.loads(dataStr)
+    fileInfoList = jsonData.get("file_info_list")
+    totalFiles = jsonData.get("total_files")
+    port = jsonData.get("port")
+    ip = jsonData.get("ip")
 
-        fileInfoList = receivedData.get("file_info_list")
-        totalFiles = receivedData.get("total_files")
-        port = receivedData.get("port")
-        ip = receivedData.get("ip")
+    printReceivedFiles(fileInfoList)
 
-        print("Total files received:", totalFiles)
-        print("Files received:")
-        for fileInfo in fileInfoList:
-            print(f"  Filename: {fileInfo['filename']}, Size: {fileInfo['size']} bytes")
+    registeredFiles = registerFiles(files, lock, fileInfoList, port, ip)
 
-        global files
-        registeredFiles = []
-        with lock:
-            for fileInfo in fileInfoList:
-                if fileInfo["filename"]:
-                    if fileInfo["filename"] not in files:
-                        files[fileInfo["filename"]] = {
-                            "size": fileInfo["size"],
-                            "endpoints": [
-                                {
-                                    "port": port,
-                                    "ip": ip,
-                                }
-                            ],
-                        }
-                    else:
-                        files[fileInfo["filename"]]["endpoints"].append(
-                            {
-                                "port": port,
-                                "ip": ip,
-                            }
-                        )
-                registeredFiles.append(
-                    {"filename": fileInfo["filename"], "status": "Registered"}
-                )
-
-        clientSocket.sendall(
-            json.dumps({"files_list": registeredFiles}).encode("utf-8")
-        )
+    clientSocket.sendall(
+        json.dumps({"files_list": registeredFiles}).encode("utf-8")
+    )
 
 
 def handleFileListRequest(clientSocket):
@@ -73,17 +47,18 @@ def handleFileListRequest(clientSocket):
     )
 
 def handleFileLocationRequest(clientSocket):
-    data = clientSocket.recv(1024)
+    sendStringMessage(clientSocket, Message.FILE_LOCATION_REQUEST_ACK.value)
+    filename = receiveData(clientSocket)
+    if filename is None:
+        return
 
-    if not data:
-        print("No data received from the client.")
     else:
-        filename = data.decode("utf-8")
         global files
         
         if filename in files:
             print(files[filename]["endpoints"])
             clientSocket.sendall(json.dumps({ "endpoints" : files[filename]["endpoints"]}).encode("utf-8"))
+
 
 def handleClient(clientSocket):
     try:
@@ -92,21 +67,16 @@ def handleClient(clientSocket):
         messageType = data.decode("utf-8")
         print(messageType)
 
-        if messageType == Message.REGISTER_REQUEST.value:
+        if messageType == Message.REGISTER_REQUEST_INIT.value:
             handleRegisterRequest(clientSocket)
         elif messageType == Message.FILE_LIST_REQUEST.value:
             handleFileListRequest(clientSocket)
-        elif messageType == Message.FILE_LOCATION_REQUEST.value:
-            clientSocket.sendall(b"Send file name")
+        elif messageType == Message.FILE_LOCATION_REQUEST_INIT.value:
             handleFileLocationRequest(clientSocket)
         elif messageType == Message.CHUNK_REGISTER_REQUEST.value:
             print("Handling a Chunk Register Request.")
         elif messageType == Message.FILE_CHUNK_REQUEST.value:
             print("Handling a File Chunk Request.")
-
-        # while data:
-        #     client_socket.send(b"Received: " + data)
-        #     data = client_socket.recv(1024)
 
     except Exception as e:
         print(f"Error: {e}")

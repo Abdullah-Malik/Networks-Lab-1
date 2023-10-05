@@ -1,40 +1,45 @@
-import socket
-import argparse
 import sys
-import os
-from message import Message
+import socket
 import json
+
+from utils import *
+from network import *
+from message import Message
+
 
 HOST = "127.0.0.1"
 
-def sendRegisterRequest(clientSocket, ip, port, dir):
-    fileInfoList, totalFiles = crawlDirectory(dir)
+def waitRegisteredFilesMessage(clientSocket):
+    data = receiveData(clientSocket)
+    if data is None:
+        return
+    jsonData = json.loads(data)
 
-    fileInfoData = json.dumps({
-        "file_info_list": fileInfoList,
-        "total_files": totalFiles,
-        "port": port,
-        "ip": ip
-    }).encode('utf-8')
-    clientSocket.sendall(fileInfoData)
-
-def waitRegisterReply(clientSocket):
-    data = clientSocket.recv(1024)
-    receivedData = json.loads(data)
-
-    filesList = receivedData.get("files_list")
+    filesList = jsonData.get("files_list")
     for file in filesList:
         print(f'File: {file["filename"]} Status: {file["status"]}')
 
-def sendFileLocationRequest(clientSocket, filename):
-    clientSocket.sendall(filename.encode('utf-8'))
+def handleRegisterFilesRequest(clientSocket, ip, port, dir):
+    data = receiveData(clientSocket)
+    if data is None:
+        return
 
-def waitFileLocationReply(clientSocket):
-    data = clientSocket.recv(1024)
-    receivedData = data.decode('utf-8')
-    print(receivedData)
+    if data == Message.REGISTER_REQUEST_ACK.value:
+        fileInfoList, totalFiles = crawlDirectory(dir)
 
-def waitFileListRequest(clientSocket):
+        fileInfoData = convertToJsonAndEncode(
+            {
+                "file_info_list": fileInfoList,
+                "total_files": totalFiles,
+                "port": port,
+                "ip": ip,
+            }
+        )
+
+        sendBytesData(clientSocket, fileInfoData)
+        waitRegisteredFilesMessage(clientSocket)
+
+def handleFileListRequest(clientSocket):
     data = clientSocket.recv(1024)
     receivedData = json.loads(data)
 
@@ -44,36 +49,21 @@ def waitFileListRequest(clientSocket):
     for file in filesList:
         print(f'Name: {file["filename"]} Size: {file["size"]}')
 
-def crawlDirectory(directoryPath):
-    totalFiles = 0
-    fileInfoList = []
 
-    # Check if the given path is a valid directory
-    if not os.path.isdir(directoryPath):
-        raise ValueError("The provided path is not a valid directory.")
+def handleFileLocationRequest(clientSocket, filename):
+    data = receiveData(clientSocket)
+    if data is None:
+        return
 
-    # Walk through the directory and its subdirectories
-    for root, _, files in os.walk(directoryPath):
-        for filename in files:
-            filePath = os.path.join(root, filename)
-            fileSize = os.path.getsize(filePath)
-            fileInfoList.append({
-                "filename": filename,
-                "size": fileSize
-            })
-            totalFiles += 1
+    if data == Message.FILE_LOCATION_REQUEST_ACK.value:
+        sendStringMessage(clientSocket, filename)
 
-    return fileInfoList, totalFiles
-
-def parseArguments():
-    parser = argparse.ArgumentParser(description="Command-line argument example")
-
-    parser.add_argument("--port", type=int, help="Port number")
-    parser.add_argument("--dir", type=str, help="Directory path")
-
-    args = parser.parse_args()
-
-    return args
+        endpointsData = receiveData(clientSocket)
+        if endpointsData is None:
+            return 
+        
+        print(endpointsData)
+        return endpointsData
 
 def main():
     args = parseArguments()
@@ -84,26 +74,15 @@ def main():
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, args.port))
-        messageType = Message.FILE_LOCATION_REQUEST.value
-        s.sendall(messageType.encode('utf-8'))
-        print(messageType)
+        messageType = Message.FILE_LOCATION_REQUEST_INIT.value
+        sendStringMessage(s, messageType)
 
-        if messageType == Message.REGISTER_REQUEST.value:
-            sendRegisterRequest(s, HOST, args.port, args.dir)
-            waitRegisterReply(s)
+        if messageType == Message.REGISTER_REQUEST_INIT.value:
+            handleRegisterFilesRequest(s, HOST, args.port, args.dir)
         elif messageType == Message.FILE_LIST_REQUEST.value:
-            waitFileListRequest(s)
-        elif messageType == Message.FILE_LOCATION_REQUEST.value:
-            waitFileLocationReply(s)
-            sendFileLocationRequest(s, "networks_history.txt")
-            waitFileLocationReply(s)
-        elif messageType == Message.CHUNK_REGISTER_REQUEST.value:
-            print("Handling a Chunk Register Request.")
-        elif messageType == Message.FILE_CHUNK_REQUEST.value:
-            print("Handling a File Chunk Request.")
-
-    # print(f"Received {data!r}")
-    
+            handleFileListRequest(s)
+        elif messageType == Message.FILE_LOCATION_REQUEST_INIT.value:
+            handleFileLocationRequest(s, "networks_history.txt")
 
 if __name__ == "__main__":
     main()
