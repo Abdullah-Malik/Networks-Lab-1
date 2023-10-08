@@ -7,4 +7,9 @@ class Message(Enum):
     FILE_LOCATION_REQUEST_INIT = "File Location Request Init"
     FILE_LOCATION_REQUEST_ACK = "File Location Request Ack"
     CHUNK_REGISTER_REQUEST = "Chunk Register Request"
-    FILE_CHUNK_REQUEST = "File Chunk Request"
+    FILE_CHUNK_REQUEST_INIT = "File Chunk Request Init"
+    FILE_CHUNK_REQUEST_ACK = "File Chunk Request Ack"
+
+class InputEnum(Enum):
+    FILE_LIST = "Files list"
+    DOWNLOAD_FILE = "Download file"

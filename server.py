@@ -7,7 +7,7 @@ from utils import *
 from network import *
 
 HOST = "127.0.0.1"
-PORT = 65456
+PORT = 65443
 
 files = {}
 lock = threading.Lock()
@@ -17,7 +17,7 @@ def handleRegisterRequest(clientSocket):
     data = receiveData(clientSocket)
     if data is None:
         return
-    
+
     jsonData = json.loads(data)
 
     fileInfoList = jsonData.get("file_info_list")
@@ -29,9 +29,9 @@ def handleRegisterRequest(clientSocket):
 
     registeredFiles = registerFiles(files, lock, fileInfoList, port, ip)
 
-    clientSocket.sendall(
-        json.dumps({"files_list": registeredFiles}).encode("utf-8")
-    )
+    clientSocket.sendall(json.dumps({"files_list": registeredFiles}).encode("utf-8"))
+
+    clientSocket.close()
 
 
 def handleFileListRequest(clientSocket):
@@ -46,6 +46,7 @@ def handleFileListRequest(clientSocket):
         )
     )
 
+
 def handleFileLocationRequest(clientSocket):
     sendStringMessage(clientSocket, Message.FILE_LOCATION_REQUEST_ACK.value)
     filename = receiveData(clientSocket)
@@ -54,15 +55,15 @@ def handleFileLocationRequest(clientSocket):
 
     else:
         global files
-        
+
         if filename in files:
-            print(files[filename]["endpoints"])
-            clientSocket.sendall(json.dumps({ "endpoints" : files[filename]["endpoints"]}).encode("utf-8"))
+            clientSocket.sendall(
+                json.dumps({"endpoints": files[filename]["endpoints"]}).encode("utf-8")
+            )
 
 
 def handleClient(clientSocket):
     try:
-        # Receive and send data to the client
         data = clientSocket.recv(1024)
         messageType = data.decode("utf-8")
         print(messageType)

@@ -1,14 +1,22 @@
 import argparse
 import os
 import json
+import sys
+
+from message import InputEnum
 
 def parseArguments():
     parser = argparse.ArgumentParser(description="Command-line argument example")
 
-    parser.add_argument("--port", type=int, help="Port number")
+    parser.add_argument("--sp", type=int, help="Server port number")
+    parser.add_argument("--cp", type=int, help="Client port number")
     parser.add_argument("--dir", type=str, help="Directory path")
 
     args = parser.parse_args()
+
+    if args.sp is None or args.dir is None or args.cp is None:
+        print("Error: One of the required arguments is missing")
+        sys.exit(1)
 
     return args
 
@@ -62,3 +70,35 @@ def convertToJsonAndEncode(dataDict):
     except Exception as e:
         print(f"Error encoding dictionary to JSON: {e}")
         return None
+    
+def readFileInBytes(filename, relativeDir):
+    currentDir = os.getcwd()
+
+    filePath = os.path.join(currentDir, relativeDir, filename)
+
+    try:
+        with open(filePath, 'rb') as file:
+            fileData = file.read()
+        return fileData
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        return str(e)
+    
+def takeUserInput():  
+    print("Choose an option:")
+    print("1. Print list of files")
+    print("2. Download a file")
+    
+    try:
+        choice = int(input("Enter your choice (1/2): "))
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
+    
+    if choice == 1:
+        return InputEnum.FILE_LIST.value, ""
+    elif choice == 2:
+        filename = input("Write the name of the file to download: ")
+        return InputEnum.DOWNLOAD_FILE.value, filename
+    else:
+        print("Invalid choice")
