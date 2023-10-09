@@ -7,10 +7,11 @@ from utils import *
 from network import *
 
 HOST = "127.0.0.1"
-PORT = 65443
+PORT = 65444
 
 files = {}
 lock = threading.Lock()
+
 
 def handleRegisterRequest(clientSocket):
     sendStringMessage(clientSocket, Message.REGISTER_REQUEST_ACK.value)

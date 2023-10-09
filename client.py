@@ -9,7 +9,8 @@ from message import Message
 HOST = "127.0.0.1"
 
 filesOnNetwork = []
-temp = {}
+fileChunks = {}
+lock = threading.Lock()
 
 
 def waitRegisteredFilesMessage(clientSocket):
@@ -113,6 +114,13 @@ def downloadChunk(endpoint, filename, chunkId):
             chunkData = receiveData(s)
             if chunkData is None:
                 return
+            else:
+                with lock:
+                    if filename not in fileChunks:
+                        fileChunks[filename] = {}
+
+                    fileChunks[filename][chunkId] = chunkData
+
 
 def downloadFile(clientSocket, filename):
     endpoints = handleFileLocationRequest(clientSocket, filename)
@@ -127,14 +135,18 @@ def downloadFile(clientSocket, filename):
     if chunksCount > 0:
         i = 0
 
-        threads = [threading.Thread(target=downloadChunk, args=(endpoints[i % len(endpoints)], filename, i)) for i in range(chunksCount+1)]
-        
+        threads = [
+            threading.Thread(
+                target=downloadChunk, args=(endpoints[i % len(endpoints)], filename, i)
+            )
+            for i in range(chunksCount + 1)
+        ]
+
         for thread in threads:
             thread.start()
 
         for thread in threads:
             thread.join()
-        
 
 
 def handlePeerRequest(clientPort, dirPath):
@@ -169,7 +181,7 @@ def clientThread(serverPort, clientPort, dirPath):
             elif input == InputEnum.DOWNLOAD_FILE.value:
                 sendStringMessage(s, Message.FILE_LOCATION_REQUEST_INIT.value)
                 downloadFile(s, filename)
-
+                writeDownloadedFile(fileChunks, filename, dirPath)
             s.close()
 
 

@@ -5,6 +5,7 @@ import sys
 
 from message import InputEnum
 
+
 def parseArguments():
     parser = argparse.ArgumentParser(description="Command-line argument example")
 
@@ -20,6 +21,7 @@ def parseArguments():
 
     return args
 
+
 def crawlDirectory(directoryPath):
     totalFiles = 0
     fileInfoList = []
@@ -31,13 +33,11 @@ def crawlDirectory(directoryPath):
         for filename in files:
             filePath = os.path.join(root, filename)
             fileSize = os.path.getsize(filePath)
-            fileInfoList.append({
-                "filename": filename,
-                "size": fileSize
-            })
+            fileInfoList.append({"filename": filename, "size": fileSize})
             totalFiles += 1
 
     return fileInfoList, totalFiles
+
 
 def printReceivedFiles(receivedFiles):
     print("Total files received:", len(receivedFiles))
@@ -46,6 +46,7 @@ def printReceivedFiles(receivedFiles):
         filename = fileInfo.get("filename")
         size = fileInfo.get("size")
         print(f"  Filename: {filename}, Size: {size} bytes")
+
 
 def registerFiles(files, lock, receivedFiles, port, ip):
     registeredFiles = []
@@ -63,38 +64,41 @@ def registerFiles(files, lock, receivedFiles, port, ip):
             registeredFiles.append({"filename": filename, "status": "Registered"})
     return registeredFiles
 
+
 def convertToJsonAndEncode(dataDict):
     try:
-        jsonData = json.dumps(dataDict).encode('utf-8')
+        jsonData = json.dumps(dataDict).encode("utf-8")
         return jsonData
     except Exception as e:
         print(f"Error encoding dictionary to JSON: {e}")
         return None
-    
+
+
 def readFileInBytes(filename, relativeDir):
     currentDir = os.getcwd()
 
     filePath = os.path.join(currentDir, relativeDir, filename)
 
     try:
-        with open(filePath, 'rb') as file:
+        with open(filePath, "rb") as file:
             fileData = file.read()
         return fileData
     except FileNotFoundError:
         return None
     except Exception as e:
         return str(e)
-    
-def takeUserInput():  
+
+
+def takeUserInput():
     print("Choose an option:")
     print("1. Print list of files")
     print("2. Download a file")
-    
+
     try:
         choice = int(input("Enter your choice (1/2): "))
     except ValueError:
         print("Invalid input. Please enter a valid number.")
-    
+
     if choice == 1:
         return InputEnum.FILE_LIST.value, ""
     elif choice == 2:
@@ -102,3 +106,19 @@ def takeUserInput():
         return InputEnum.DOWNLOAD_FILE.value, filename
     else:
         print("Invalid choice")
+
+
+def writeDownloadedFile(fileChunks, filename, relativeDir):
+    currentDir = os.getcwd()
+    filePath = os.path.join(currentDir, relativeDir, filename)
+
+    try:
+        sortedChunkIds = sorted(fileChunks[filename].keys())
+
+        with open(filePath, "wb") as file:
+            for chunkId in sortedChunkIds:
+                chunk = fileChunks[filename][chunkId]
+                chunk = chunk.encode("utf-8")
+                file.write(chunk)
+    except Exception as e:
+        print(f"Error: {e}")
