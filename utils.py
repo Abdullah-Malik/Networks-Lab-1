@@ -3,6 +3,7 @@ import os
 import json
 import sys
 import hashlib
+import random
 
 from message import InputEnum
 
@@ -138,15 +139,42 @@ def writeDownloadedFile(fileChunks, filename, relativeDir):
         print(f"Error: {e}")
 
 def printEndpointsInfo(endpoints):
+    print("\nFile endpoints info:\n")
     for endpoint in endpoints:
-        print(f"{endpoint['ip']}:{endpoint['port']} - {endpoint['chunks']}")
+        print(f"{endpoint['ip']}:{endpoint['port']} has chunks {endpoint['chunks']}\n")
+
+def printEndpointsChunkDivisionInfo(endpoints):
+    print("Chunks division info:\n")
+    for endpoint in endpoints:
+        print(f"{endpoint['ip']}:{endpoint['port']} will send chunks {endpoint['chunks']}\n")
 
 def divideChunksAmongEndpoints(endpoints):
     freq = {}
+    chunkEndpoints = {}
+    endpointChunksDivisionInfo = []
+
     for endpoint in endpoints:
-        for i in endpoint['chunks']:
-            if i not in freq:
-                freq[i] = [{endpoint['ip']}]
+        endpointChunksDivisionInfo.append({"port": endpoint["port"], "ip": endpoint["ip"], "chunks":[]})
+        for chunkId in endpoint['chunks']:
+            if chunkId not in freq:
+                freq[chunkId] = 1
+            else:
+                freq[chunkId] += 1
+
+            if chunkId not in chunkEndpoints:
+                chunkEndpoints[chunkId] = [{"port": endpoint["port"], "ip": endpoint["ip"]}]
+            else:
+                chunkEndpoints[chunkId].append({"port": endpoint["port"], "ip": endpoint["ip"]})
+
+    sortedItems = sorted(freq.items(), key=lambda item: item[1])
+
+    for chunkId, _ in sortedItems:
+        selectionEndpoint = random.choice(chunkEndpoints[chunkId])
+        for endpoint in endpointChunksDivisionInfo:
+            if endpoint["port"] == selectionEndpoint["port"] and endpoint["ip"] == selectionEndpoint["ip"]:
+                endpoint["chunks"].append(chunkId)
+
+    return endpointChunksDivisionInfo
 
 def deleteFile(filePath):
     try:

@@ -157,7 +157,10 @@ def downloadChunks(endpoint, filename, chunkId, serverPort, clientPort):
 
 def downloadFile(clientSocket, filename, relativeDir, serverPort, clientPort):
     endpoints = handleFileLocationRequest(clientSocket, filename)
+    
     printEndpointsInfo(endpoints)
+    endpointChunksDivisionInfo = divideChunksAmongEndpoints(endpoints)
+    printEndpointsChunkDivisionInfo(endpointChunksDivisionInfo)
 
     filesize = 0
     fileHash = 0
