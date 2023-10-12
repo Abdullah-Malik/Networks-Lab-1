@@ -1,7 +1,6 @@
 def receiveData(clientSocket):
     data = clientSocket.recv(1024)
     if not data:
-        print("No data received")
         return None
     return data.decode("utf-8")
 

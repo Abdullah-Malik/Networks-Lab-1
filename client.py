@@ -68,11 +68,16 @@ def handleFileLocationRequest(clientSocket, filename):
     if data == Message.FILE_LOCATION_REQUEST_ACK.value:
         sendStringMessage(clientSocket, filename)
 
-        endpointsData = receiveData(clientSocket)
-        if endpointsData is None:
-            return
+        fileLocationInfo = ""
+        while True:
+            endpointsData = receiveData(clientSocket)
+            
+            if endpointsData is None:
+                break
+            else:
+                fileLocationInfo += endpointsData
 
-        endpointsDict = json.loads(endpointsData)
+        endpointsDict = json.loads(fileLocationInfo)
 
         return endpointsDict.get("endpoints")
 
@@ -84,23 +89,24 @@ def shareChunkOnRequest(clientSocket, dirPath):
 
     if initRequest == Message.FILE_CHUNK_REQUEST_INIT.value:
         sendStringMessage(clientSocket, Message.FILE_CHUNK_REQUEST_ACK.value)
-        data = receiveData(clientSocket)
-        if data is None:
-            return
+        while True:
+            data = receiveData(clientSocket)
+            if data is None:
+                return
 
-        chunkRequest = json.loads(data)
+            chunkRequest = json.loads(data)
 
-        chunkId = chunkRequest.get("id")
-        filename = chunkRequest.get("name")
+            chunkId = chunkRequest.get("id")
+            filename = chunkRequest.get("name")
 
-        currentDir = os.getcwd()
-        filePath = os.path.join(currentDir, dirPath, filename)
+            currentDir = os.getcwd()
+            filePath = os.path.join(currentDir, dirPath, filename)
 
-        fileData = readFileInBytes(filePath)
+            fileData = readFileInBytes(filePath)
 
-        if fileData is not None:
-            requestedChunkData = fileData[chunkId * 1000 : (chunkId + 1) * 1000]
-            sendBytesData(clientSocket, requestedChunkData)
+            if fileData is not None:
+                requestedChunkData = fileData[chunkId * 1000 : (chunkId + 1) * 1000]
+                sendBytesData(clientSocket, requestedChunkData)
 
 
 def handleRegisterChunkRequest(filename, chunkId, ip, port, serverPort):
@@ -121,10 +127,7 @@ def handleRegisterChunkRequest(filename, chunkId, ip, port, serverPort):
         s.close()
 
 
-def downloadChunks(endpoint, filename, chunkId, serverPort, clientPort):
-    print(
-        f"Downloading Chunk {chunkId} from {endpoint.get('ip')}:{endpoint.get('port')}"
-    )
+def downloadChunks(endpoint, filename, serverPort, clientPort):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, endpoint.get("port")))
         sendStringMessage(s, Message.FILE_CHUNK_REQUEST_INIT.value)
@@ -133,24 +136,29 @@ def downloadChunks(endpoint, filename, chunkId, serverPort, clientPort):
             return
 
         if data == Message.FILE_CHUNK_REQUEST_ACK.value:
-            chunkRequest = convertToJsonAndEncode({"id": chunkId, "name": filename})
-            sendBytesData(s, chunkRequest)
+            for chunkId in endpoint["chunks"]:
+                print(
+                    f"Downloading Chunk {chunkId} from {endpoint.get('ip')}:{endpoint.get('port')}"
+                )
+                chunkRequest = convertToJsonAndEncode({"id": chunkId, "name": filename})
+                sendBytesData(s, chunkRequest)
 
-            chunkData = receiveData(s)
-            if chunkData is None:
-                return
-            else:
-                with lock:
-                    if filename not in fileChunks:
-                        fileChunks[filename] = {}
+                chunkData = receiveData(s)
+                if chunkData is None:
+                    s.close()
+                    return
+                else:
+                    with lock:
+                        if filename not in fileChunks:
+                            fileChunks[filename] = {}
 
-                    fileChunks[filename][chunkId] = chunkData
+                        fileChunks[filename][chunkId] = chunkData
 
-            chunkRegisterThread = threading.Thread(
-                target=handleRegisterChunkRequest,
-                args=(filename, chunkId, HOST, clientPort, serverPort),
-            )
-            chunkRegisterThread.start()
+                chunkRegisterThread = threading.Thread(
+                    target=handleRegisterChunkRequest,
+                    args=(filename, chunkId, HOST, clientPort, serverPort),
+                )
+                chunkRegisterThread.start()
 
         s.close()
 
@@ -174,20 +182,18 @@ def downloadFile(clientSocket, filename, relativeDir, serverPort, clientPort):
 
     if chunksCount > 0:
         print(f"\nDownloading file: {filename}\n")
-        i = 0
 
         threads = [
             threading.Thread(
                 target=downloadChunks,
                 args=(
-                    endpoints[i % len(endpoints)],
+                    endpointChunksDivisionInfo[i],
                     filename,
-                    i,
                     serverPort,
                     clientPort,
                 ),
             )
-            for i in range(chunksCount + 1)
+            for i in range(len(endpointChunksDivisionInfo))
         ]
 
         for thread in threads:

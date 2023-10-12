@@ -64,7 +64,7 @@ def handleFileLocationRequest(clientSocket):
             clientSocket.sendall(
                 json.dumps({"endpoints": files[filename]["endpoints"]}).encode("utf-8")
             )
-
+    clientSocket.close()
 
 def handleChunkRegister(clientSocket):
     sendStringMessage(clientSocket, Message.CHUNK_REGISTER_REQUEST_ACK.value)
