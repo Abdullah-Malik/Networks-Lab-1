@@ -7,10 +7,11 @@ from utils import *
 from network import *
 
 HOST = "127.0.0.1"
-PORT = 65444
+PORT = 65460
 
 files = {}
 lock = threading.Lock()
+chunkRegisterLock = threading.Lock()
 
 
 def handleRegisterRequest(clientSocket):
@@ -39,7 +40,9 @@ def handleFileListRequest(clientSocket):
     global files
     filesList = []
     for file in files:
-        filesList.append({"filename": file, "size": files[file]["size"], "hash": files[file]["hash"]})
+        filesList.append(
+            {"filename": file, "size": files[file]["size"], "hash": files[file]["hash"]}
+        )
 
     clientSocket.sendall(
         json.dumps({"files_list": filesList, "file_count": len(filesList)}).encode(
@@ -63,11 +66,36 @@ def handleFileLocationRequest(clientSocket):
             )
 
 
+def handleChunkRegister(clientSocket):
+    sendStringMessage(clientSocket, Message.CHUNK_REGISTER_REQUEST_ACK.value)
+    data = receiveData(clientSocket)
+    chunkRegisterinfo = json.loads(data)
+
+    filename = chunkRegisterinfo.get("filename")
+    chunkId = chunkRegisterinfo.get("chunkId")
+    ip = chunkRegisterinfo.get("ip")
+    port = chunkRegisterinfo.get("port")
+
+    with chunkRegisterLock:
+        endpointFound = False
+        for endpoint in files[filename]["endpoints"]:
+            if endpoint.get("ip") == ip and endpoint.get("port") == port:
+                endpoint.get("chunks").append(chunkId)
+                endpointFound = True
+
+        if endpointFound == False:
+            files[filename]["endpoints"].append(
+                {"port": port, "ip": ip, "chunks": [chunkId]}
+            )
+
+        print(f"{ip}:{port} registered chunk {chunkId} for {filename}\n")
+
+
 def handleClient(clientSocket):
     try:
         data = clientSocket.recv(1024)
         messageType = data.decode("utf-8")
-        print(messageType)
+        print(messageType + "\n")
 
         if messageType == Message.REGISTER_REQUEST_INIT.value:
             handleRegisterRequest(clientSocket)
@@ -75,10 +103,8 @@ def handleClient(clientSocket):
             handleFileListRequest(clientSocket)
         elif messageType == Message.FILE_LOCATION_REQUEST_INIT.value:
             handleFileLocationRequest(clientSocket)
-        elif messageType == Message.CHUNK_REGISTER_REQUEST.value:
-            print("Handling a Chunk Register Request.")
-        elif messageType == Message.FILE_CHUNK_REQUEST.value:
-            print("Handling a File Chunk Request.")
+        elif messageType == Message.CHUNK_REGISTER_REQUEST_INIT.value:
+            handleChunkRegister(clientSocket)
 
     except Exception as e:
         print(f"Error: {e}")

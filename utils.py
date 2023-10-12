@@ -22,6 +22,7 @@ def parseArguments():
 
     return args
 
+
 def getHashOfFile(filePath):
     hashObject = hashlib.sha256()
     fileBytes = readFileInBytes(filePath)
@@ -29,6 +30,7 @@ def getHashOfFile(filePath):
     hashHex = hashObject.hexdigest()
 
     return hashHex
+
 
 def crawlDirectory(directoryPath):
     totalFiles = 0
@@ -41,8 +43,10 @@ def crawlDirectory(directoryPath):
         for filename in files:
             filePath = os.path.join(root, filename)
             fileSize = os.path.getsize(filePath)
-            hashHex = getHashOfFile(filePath)            
-            fileInfoList.append({"filename": filename, "size": fileSize, "hash": hashHex})
+            hashHex = getHashOfFile(filePath)
+            fileInfoList.append(
+                {"filename": filename, "size": fileSize, "hash": hashHex}
+            )
             totalFiles += 1
 
     return fileInfoList, totalFiles
@@ -55,6 +59,7 @@ def printReceivedFiles(receivedFiles):
         filename = fileInfo.get("filename")
         size = fileInfo.get("size")
         print(f"  Filename: {filename}, Size: {size} bytes")
+    print()
 
 
 def registerFiles(files, lock, receivedFiles, port, ip):
@@ -64,14 +69,17 @@ def registerFiles(files, lock, receivedFiles, port, ip):
             filename = fileInfo.get("filename")
             if filename:
                 if filename not in files:
+                    chunks = [i for i in range(1 + fileInfo.get("size") // 1000)]
                     files[filename] = {
                         "size": fileInfo.get("size"),
-                        "endpoints": [{"port": port, "ip": ip}],
-                        "hash": fileInfo.get("hash")
+                        "endpoints": [{"port": port, "ip": ip, "chunks": chunks}],
+                        "hash": fileInfo.get("hash"),
                     }
                 else:
-                    files[filename]["endpoints"].append({"port": port, "ip": ip})
+                    chunks = [i for i in range(1 + fileInfo.get("size") // 1000)]
+                    files[filename]["endpoints"].append({"port": port, "ip": ip, "chunks": chunks})
             registeredFiles.append({"filename": filename, "status": "Registered"})
+
     return registeredFiles
 
 
@@ -128,6 +136,17 @@ def writeDownloadedFile(fileChunks, filename, relativeDir):
                 file.write(chunk)
     except Exception as e:
         print(f"Error: {e}")
+
+def printEndpointsInfo(endpoints):
+    for endpoint in endpoints:
+        print(f"{endpoint['ip']}:{endpoint['port']} - {endpoint['chunks']}")
+
+def divideChunksAmongEndpoints(endpoints):
+    freq = {}
+    for endpoint in endpoints:
+        for i in endpoint['chunks']:
+            if i not in freq:
+                freq[i] = [{endpoint['ip']}]
 
 def deleteFile(filePath):
     try:
