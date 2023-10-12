@@ -91,8 +91,11 @@ def shareChunkOnRequest(clientSocket, dirPath):
 
         chunkId = chunkRequest.get("id")
         filename = chunkRequest.get("name")
+        
+        currentDir = os.getcwd()
+        filePath = os.path.join(currentDir, dirPath, filename)
 
-        fileData = readFileInBytes(filename, dirPath)
+        fileData = readFileInBytes(filePath)
 
         if fileData is not None:
             requestedChunkData = fileData[chunkId * 1000 : (chunkId + 1) * 1000]

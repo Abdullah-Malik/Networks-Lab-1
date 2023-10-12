@@ -74,11 +74,7 @@ def convertToJsonAndEncode(dataDict):
         return None
 
 
-def readFileInBytes(filename, relativeDir):
-    currentDir = os.getcwd()
-
-    filePath = os.path.join(currentDir, relativeDir, filename)
-
+def readFileInBytes(filePath):
     try:
         with open(filePath, "rb") as file:
             fileData = file.read()
