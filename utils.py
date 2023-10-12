@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 import sys
+import hashlib
 
 from message import InputEnum
 
@@ -21,6 +22,13 @@ def parseArguments():
 
     return args
 
+def getHashOfFile(filePath):
+    hashObject = hashlib.sha256()
+    fileBytes = readFileInBytes(filePath)
+    hashObject.update(fileBytes)
+    hashHex = hashObject.hexdigest()
+
+    return hashHex
 
 def crawlDirectory(directoryPath):
     totalFiles = 0
@@ -33,7 +41,8 @@ def crawlDirectory(directoryPath):
         for filename in files:
             filePath = os.path.join(root, filename)
             fileSize = os.path.getsize(filePath)
-            fileInfoList.append({"filename": filename, "size": fileSize})
+            hashHex = getHashOfFile(filePath)            
+            fileInfoList.append({"filename": filename, "size": fileSize, "hash": hashHex})
             totalFiles += 1
 
     return fileInfoList, totalFiles
@@ -58,6 +67,7 @@ def registerFiles(files, lock, receivedFiles, port, ip):
                     files[filename] = {
                         "size": fileInfo.get("size"),
                         "endpoints": [{"port": port, "ip": ip}],
+                        "hash": fileInfo.get("hash")
                     }
                 else:
                     files[filename]["endpoints"].append({"port": port, "ip": ip})
@@ -86,7 +96,7 @@ def readFileInBytes(filePath):
 
 
 def takeUserInput():
-    print("Choose an option:")
+    print("\nChoose an option:")
     print("1. Print list of files")
     print("2. Download a file")
 
@@ -117,4 +127,11 @@ def writeDownloadedFile(fileChunks, filename, relativeDir):
                 chunk = chunk.encode("utf-8")
                 file.write(chunk)
     except Exception as e:
+        print(f"Error: {e}")
+
+def deleteFile(filePath):
+    try:
+        os.remove(filePath)
+        print(f"File '{filePath}' has been successfully deleted.")
+    except OSError as e:
         print(f"Error: {e}")

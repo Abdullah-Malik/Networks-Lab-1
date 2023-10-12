@@ -39,7 +39,7 @@ def handleFileListRequest(clientSocket):
     global files
     filesList = []
     for file in files:
-        filesList.append({"filename": file, "size": files[file]["size"]})
+        filesList.append({"filename": file, "size": files[file]["size"], "hash": files[file]["hash"]})
 
     clientSocket.sendall(
         json.dumps({"files_list": filesList, "file_count": len(filesList)}).encode(

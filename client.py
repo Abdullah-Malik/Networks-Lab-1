@@ -19,6 +19,7 @@ def waitRegisteredFilesMessage(clientSocket):
         return
     jsonData = json.loads(data)
 
+    print("Following files have been registered with the server:\n")
     filesList = jsonData.get("files_list")
     for file in filesList:
         print(f'File: {file["filename"]} Status: {file["status"]}')
@@ -103,6 +104,7 @@ def shareChunkOnRequest(clientSocket, dirPath):
 
 
 def downloadChunk(endpoint, filename, chunkId):
+    print(f"Downloading Chunk {chunkId} from {endpoint.get('ip')}:{endpoint.get('port')}")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, endpoint.get("port")))
         sendStringMessage(s, Message.FILE_CHUNK_REQUEST_INIT.value)
@@ -123,19 +125,24 @@ def downloadChunk(endpoint, filename, chunkId):
                         fileChunks[filename] = {}
 
                     fileChunks[filename][chunkId] = chunkData
+        
+        s.close()
 
 
-def downloadFile(clientSocket, filename):
+def downloadFile(clientSocket, filename, relativeDir):
     endpoints = handleFileLocationRequest(clientSocket, filename)
     filesize = 0
+    fileHash = 0
 
     for file in filesOnNetwork:
         if filename == file["filename"]:
             filesize = file["size"]
+            fileHash = file["hash"]  
 
     chunksCount = filesize // 1000
 
     if chunksCount > 0:
+        print(f"\nDownloading file: {filename}\n")
         i = 0
 
         threads = [
@@ -150,6 +157,21 @@ def downloadFile(clientSocket, filename):
 
         for thread in threads:
             thread.join()
+
+        print("\nFinished Downloading file\n")
+        writeDownloadedFile(fileChunks, filename, relativeDir)
+
+        currentDir = os.getcwd()
+        filePath = os.path.join(currentDir, relativeDir, filename)
+
+        hashHex = getHashOfFile(filePath)
+        if hashHex == fileHash:
+            print("Downloaded file passed integrity check\n")
+        else:
+            print("Downloaded file did not pass integrity check\n")
+            print(f"Deleting file: {filename}\n")
+            deleteFile(filePath)
+
 
 
 def handlePeerRequest(clientPort, dirPath):
@@ -174,7 +196,6 @@ def clientThread(serverPort, clientPort, dirPath):
 
     while True:
         input, filename = takeUserInput()
-        print(input, filename)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((HOST, serverPort))
 
@@ -183,8 +204,8 @@ def clientThread(serverPort, clientPort, dirPath):
                 handleFileListRequest(s)
             elif input == InputEnum.DOWNLOAD_FILE.value:
                 sendStringMessage(s, Message.FILE_LOCATION_REQUEST_INIT.value)
-                downloadFile(s, filename)
-                writeDownloadedFile(fileChunks, filename, dirPath)
+                downloadFile(s, filename, dirPath)
+            
             s.close()
 
 
