@@ -1,5 +1,6 @@
 from enum import Enum
 
+#Enum for different request messages
 class Message(Enum):
     REGISTER_REQUEST_INIT = "Register Request Init"
     REGISTER_REQUEST_ACK = "Register Request Ack"

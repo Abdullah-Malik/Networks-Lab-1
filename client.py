@@ -12,7 +12,8 @@ filesOnNetwork = []
 fileChunks = {}
 lock = threading.Lock()
 
-
+# The function is used to wait for the server's acknowledgment of registered files 
+# and prints the registered files 
 def waitRegisteredFilesMessage(clientSocket):
     data = receiveData(clientSocket)
     if data is None:
@@ -24,7 +25,7 @@ def waitRegisteredFilesMessage(clientSocket):
     for file in filesList:
         print(f'File: {file["filename"]} Status: {file["status"]}')
 
-
+# Function is used to register files with server
 def handleRegisterFilesRequest(clientSocket, ip, port, dir):
     data = receiveData(clientSocket)
     if data is None:
@@ -45,7 +46,7 @@ def handleRegisterFilesRequest(clientSocket, ip, port, dir):
         sendBytesData(clientSocket, fileInfoData)
         waitRegisteredFilesMessage(clientSocket)
 
-
+# Function is used to get the list of files on the network from the server
 def handleFileListRequest(clientSocket):
     data = clientSocket.recv(1024)
     receivedData = json.loads(data)
@@ -59,7 +60,8 @@ def handleFileListRequest(clientSocket):
 
     filesOnNetwork.extend(filesList)
 
-
+# Function is used to get information regarding the location of file 
+# The servers sends information regarding endpoints and chunks
 def handleFileLocationRequest(clientSocket, filename):
     data = receiveData(clientSocket)
     if data is None:
@@ -81,7 +83,7 @@ def handleFileLocationRequest(clientSocket, filename):
 
         return endpointsDict.get("endpoints")
 
-
+# The function is used to send a chunk to a peer upon request
 def shareChunkOnRequest(clientSocket, dirPath):
     initRequest = receiveData(clientSocket)
     if initRequest is None:
@@ -108,7 +110,7 @@ def shareChunkOnRequest(clientSocket, dirPath):
                 requestedChunkData = fileData[chunkId * 1000 : (chunkId + 1) * 1000]
                 sendBytesData(clientSocket, requestedChunkData)
 
-
+# The function is used to register a downloaded chunk with the server
 def handleRegisterChunkRequest(filename, chunkId, ip, port, serverPort):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, serverPort))
@@ -126,7 +128,9 @@ def handleRegisterChunkRequest(filename, chunkId, ip, port, serverPort):
 
         s.close()
 
-
+# The function handles downloading chunks from given peer 
+# After downloading the chunk. A connection is opened with the server
+# to get the downloaded chunk registered with the server
 def downloadChunks(endpoint, filename, serverPort, clientPort):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, endpoint.get("port")))
@@ -162,7 +166,10 @@ def downloadChunks(endpoint, filename, serverPort, clientPort):
 
         s.close()
 
-
+# The function handles downloading file 
+# TCP connections are opened at the same time with mulitiple peers who has the file 
+# Division of chunks to be downloaded from each peer is also done in the function
+# After the download is complete, integrity of the downloaded file is also checked
 def downloadFile(clientSocket, filename, relativeDir, serverPort, clientPort):
     endpoints = handleFileLocationRequest(clientSocket, filename)
     

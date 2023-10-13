@@ -7,7 +7,8 @@ import random
 
 from message import InputEnum
 
-
+#Function for parsing arguments. Three arguments are parsed including server port, 
+# client port, relative direction
 def parseArguments():
     parser = argparse.ArgumentParser(description="Command-line argument example")
 
@@ -23,7 +24,7 @@ def parseArguments():
 
     return args
 
-
+# Function to get the hash of given file
 def getHashOfFile(filePath):
     hashObject = hashlib.sha256()
     fileBytes = readFileInBytes(filePath)
@@ -32,7 +33,8 @@ def getHashOfFile(filePath):
 
     return hashHex
 
-
+# Function crawls the given directory and iterate over files 
+# and for each file  calculate size and hash and return this data
 def crawlDirectory(directoryPath):
     totalFiles = 0
     fileInfoList = []
@@ -52,7 +54,7 @@ def crawlDirectory(directoryPath):
 
     return fileInfoList, totalFiles
 
-
+# Function prints the list of files
 def printReceivedFiles(receivedFiles):
     print("Total files received:", len(receivedFiles))
     print("Files received:")
@@ -62,7 +64,7 @@ def printReceivedFiles(receivedFiles):
         print(f"  Filename: {filename}, Size: {size} bytes")
     print()
 
-
+# Function is used by the server to register list of files that are sent by the client
 def registerFiles(files, lock, receivedFiles, port, ip):
     registeredFiles = []
     with lock:
@@ -83,7 +85,7 @@ def registerFiles(files, lock, receivedFiles, port, ip):
 
     return registeredFiles
 
-
+# Function takes a python dictionary and return the utf-8 encoding on input
 def convertToJsonAndEncode(dataDict):
     try:
         jsonData = json.dumps(dataDict).encode("utf-8")
@@ -92,7 +94,7 @@ def convertToJsonAndEncode(dataDict):
         print(f"Error encoding dictionary to JSON: {e}")
         return None
 
-
+# The given function reads the file and returns the file data in bytes
 def readFileInBytes(filePath):
     try:
         with open(filePath, "rb") as file:
@@ -103,7 +105,7 @@ def readFileInBytes(filePath):
     except Exception as e:
         return str(e)
 
-
+# Function is used by client to take input from user
 def takeUserInput():
     print("\nChoose an option:")
     print("1. Print list of files")
@@ -122,7 +124,7 @@ def takeUserInput():
     else:
         print("Invalid choice")
 
-
+# Function writes the files after downloading is completed
 def writeDownloadedFile(fileChunks, filename, relativeDir):
     currentDir = os.getcwd()
     filePath = os.path.join(currentDir, relativeDir, filename)
@@ -138,16 +140,20 @@ def writeDownloadedFile(fileChunks, filename, relativeDir):
     except Exception as e:
         print(f"Error: {e}")
 
+# The function prints information regarding endpoints and chunks received from server
 def printEndpointsInfo(endpoints):
     print("\nFile endpoints info:\n")
     for endpoint in endpoints:
         print(f"{endpoint['ip']}:{endpoint['port']} has chunks {endpoint['chunks']}\n")
 
+# The function prints the information regarding division of chunks among peers
 def printEndpointsChunkDivisionInfo(endpoints):
     print("Chunks division info:\n")
     for endpoint in endpoints:
         print(f"{endpoint['ip']}:{endpoint['port']} will send chunks {endpoint['chunks']}\n")
 
+# The function is used to divide chunks among peers while also 
+# implementing rarest first principle
 def divideChunksAmongEndpoints(endpoints):
     freq = {}
     chunkEndpoints = {}
@@ -176,6 +182,7 @@ def divideChunksAmongEndpoints(endpoints):
 
     return endpointChunksDivisionInfo
 
+# Function deletes the file at the given file path
 def deleteFile(filePath):
     try:
         os.remove(filePath)

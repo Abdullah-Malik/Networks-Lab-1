@@ -13,7 +13,9 @@ files = {}
 lock = threading.Lock()
 chunkRegisterLock = threading.Lock()
 
-
+# Function handles the register files request
+# It receives a list of files along with size and hash of each file
+# The function returns the acknowledge of registered files to client
 def handleRegisterRequest(clientSocket):
     sendStringMessage(clientSocket, Message.REGISTER_REQUEST_ACK.value)
     data = receiveData(clientSocket)
@@ -35,7 +37,7 @@ def handleRegisterRequest(clientSocket):
 
     clientSocket.close()
 
-
+# The function handles file list request and returns the list of files on the network to client
 def handleFileListRequest(clientSocket):
     global files
     filesList = []
@@ -50,7 +52,9 @@ def handleFileListRequest(clientSocket):
         )
     )
 
-
+# The function handles file location request 
+# and shares information regarding which clients have given file 
+# and what chunks do each client have
 def handleFileLocationRequest(clientSocket):
     sendStringMessage(clientSocket, Message.FILE_LOCATION_REQUEST_ACK.value)
     filename = receiveData(clientSocket)
@@ -66,6 +70,7 @@ def handleFileLocationRequest(clientSocket):
             )
     clientSocket.close()
 
+# The function handles chunk registration request from the client
 def handleChunkRegister(clientSocket):
     sendStringMessage(clientSocket, Message.CHUNK_REGISTER_REQUEST_ACK.value)
     data = receiveData(clientSocket)
